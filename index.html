@@ -25,7 +25,6 @@
         */
         var keySystem;
         var certificate;
-        var serverCertificatePath = 'https://themes.vdocipher.com/n5xpmvtxmyw97xy2/35f0464d86fa459883b4c130b4fe11fe/fairplay.cer';
         var serverProcessSPCPath  = 'path/keyservermodule';     // ADAPT: This is the path/URL to the keyserver module that processes the SPC and returns a CKC
 
         function stringToArray(string) {
@@ -54,6 +53,7 @@
         }
 
         function base64EncodeUint8Array(input) {
+            log(arguments.callee.name);
             var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
             var output = "";
             var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
@@ -86,8 +86,17 @@
                     }, false);
         }
 
-        function loadCertificate() 
+        function loadCertificate()
         {
+            log(arguments.callee.name);
+            var serverCertificatePath;
+            if (location.search === '?working') {
+                serverCertificatePath = 'https://themes.vdocipher.com/n5xpmvtxmyw97xy2/2526c4787b3c40a9bffaa5805062c2e3/fairplay.cer';
+                document.querySelector('#certType').innerText = 'Working';
+            } else {
+                serverCertificatePath = 'https://themes.vdocipher.com/n5xpmvtxmyw97xy2/35f0464d86fa459883b4c130b4fe11fe/fairplay.cer';
+                document.querySelector('#certType').innerText = 'Broken';
+            }
             var request = new XMLHttpRequest();
             request.responseType = 'arraybuffer';
             request.addEventListener('load', onCertificateLoaded, false);
@@ -99,12 +108,14 @@
         }
 
         function onCertificateLoaded(event) {
+            log(arguments.callee.name, event);
             var request = event.target;
             certificate = new Uint8Array(request.response);
             startVideo();
         }
 
         function onCertificateError(event) {
+            log(arguments.callee.name, event);
             window.console.error('Failed to retrieve the server certificate.')
         }
 
@@ -117,6 +128,7 @@
         }
 
         function concatInitDataIdAndCertificate(initData, id, cert) {
+            log(arguments.callee.name);
             if (typeof id == "string")
                 id = stringToArray(id);
             // layout is [initData][4 byte: idLength][idLength byte: id][4 byte:certLength][certLength byte: cert]
@@ -146,11 +158,11 @@
 
         function selectKeySystem()
         {
-            if (WebKitMediaKeys.isTypeSupported("com.apple.fps.1_0", "video/mp4")) 
+            if (WebKitMediaKeys.isTypeSupported("com.apple.fps.1_0", "video/mp4"))
             {
                 keySystem = "com.apple.fps.1_0";
-            } 
-            else 
+            }
+            else
             {
                 throw "Key System not supported";
             }
@@ -158,6 +170,7 @@
 
         function startVideo()
         {
+            log(arguments.callee.name);
             var video = document.getElementsByTagName('video')[0];
             video.addEventListener('webkitneedkey', onneedkey, false);
             video.addEventListener('error', onerror, false);
@@ -166,11 +179,13 @@
         }
 
         function onerror(event) {
+            log(arguments.callee.name, event);
             window.console.error('A video playback error occurred')
         }
 
-        function onneedkey(event) 
+        function onneedkey(event)
         {
+            log(arguments.callee.name, event);
             var video = event.target;
             var initData = event.initData;
             var contentId = extractContentId(initData);
@@ -200,8 +215,10 @@
             spc=<base64 encoded data>&assetId=<data>
             ADAPT: Partners must tailor to their own protocol.
         */
-        function licenseRequestReady(event) 
+        function licenseRequestReady(event)
         {
+            log("SUCCESS: ", arguments.callee.name, event);
+            throw new Error('Not implemented. If only the code could reach here, there wouldn\'t be any issue.');
             var session = event.target;
             var message = event.message;
             var request = new XMLHttpRequest();
@@ -218,6 +235,7 @@
 
         function licenseRequestLoaded(event)
         {
+            log(arguments.callee.name, event);
             var request = event.target;
             var session = request.session;
             // response can be of the form: '\n<ckc>base64encoded</ckc>\n'
@@ -231,25 +249,76 @@
 
         function licenseRequestFailed(event)
         {
+            log(arguments.callee.name, event);
             window.console.error('The license request failed.');
         }
 
         function onkeyerror(event) {
-            window.console.error('A decryption key error was encountered', event.target.error);
+            log(arguments.callee.name, logError(event.target.error));
+            window.console.error('A decryption key error was encountered');
         }
 
         function onkeyadded(event) {
+            log(arguments.callee.name, event);
             window.console.log('Decryption key was added to session.');
+        }
+
+        function loadCert(arg) {
+            window.location.search = arg;
         }
 
         </script>
     </head>
     <body onload="loadCertificate()">
-      <em>
-        This is minimal repro of error.
-        <a href="./index.html">More details here</a>
-      </em>
-        <video controls autoplay preload="auto" width=960></video>
+        <h2>Demonstration of issue with fairplay certificate</h2>
+        <em>
+          This file is copied from the sample HTML file in Fairplay SDK 4.3 with modifications for hints. 
+          <a href="./FPS_in_Safari_Example.html">Minimal modified version here</a>
+        </em>
+        <p>
+            A fairplay streaming certificate generated seems to be giving unexpected error on latest macOS Safari.
+            Similar certificate generated from other accounts are working fine on the same computer with the same code.
+        </p>
+
+        <p>
+            `webkitkeyadded` event is not fired, instead, it emits a `webkitkeyerror` with `WebKitMediaKeyError` (code: 6, systemCode: 4294924646) immediately after loading the certificate. When loading a fairplay certificate from a different account, the same code works perfectly fine on the same device in another tab of the same window.
+        </p>
+
+        <p>
+            The code doesn't even reach the point where it generates the SPC. I have re-downloaded
+            the certificate but it just returned the exact same file (verified with md5sum).
+        </p>
+
+        <p>
+            This error is not documented anywhere in the Fairplay documentation.
+            The KMS server (which is not relevant because error happens before that) has been verified to work with the
+            test vectors, and the same KMS application code is working with other fairplay accounts in production otherwise.
+        </p>
+        </p>
+        <p>
+            Currently Loaded Certificate = <span id="certType"></span>
+        </p>
+        <button onclick="loadCert('broken')">Broken Certificate</button>
+        <button onclick="loadCert('working')">Working Certificate from different account</button>
+        <video controls autoplay preload="auto" width=640></video>
+        <pre id="logDisplay" style='line-height: 1.5rem; background-color: lightgray; padding: 10px'></pre>
+        <script>
+              var log = (...args) => {
+                const preTag = document.querySelector('#logDisplay');
+                const message = args.map(a => JSON.stringify(a)).join();
+                const div = document.createElement('div');
+                div.innerText = message;
+                if (message.match(/error/i)) div.style.color = 'red';
+                if (message.match(/success/i)) div.style.color = 'green';
+                preTag.appendChild(div);
+              };
+              var logError = (e) => {
+                  console.error("ERROR: ", Object.keys(e));
+                  if (e.constructor.name === 'WebKitMediaKeyError')
+                      return {code: e.code, systemCode: e.systemCode};
+                  return e.message;
+              }
+        </script>
     </body>
 </html>
 
