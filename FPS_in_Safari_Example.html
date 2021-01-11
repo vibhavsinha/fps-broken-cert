@@ -25,7 +25,7 @@
         */
         var keySystem;
         var certificate;
-        var serverCertificatePath = 'path/fps_certificate.der'; // ADAPT: This is the path to the fps certificate on your server.
+        var serverCertificatePath = 'https://themes.vdocipher.com/n5xpmvtxmyw97xy2/35f0464d86fa459883b4c130b4fe11fe/fairplay.cer';
         var serverProcessSPCPath  = 'path/keyservermodule';     // ADAPT: This is the path/URL to the keyserver module that processes the SPC and returns a CKC
 
         function stringToArray(string) {
@@ -162,7 +162,7 @@
             video.addEventListener('webkitneedkey', onneedkey, false);
             video.addEventListener('error', onerror, false);
             // ADAPT: there must be logic here to fetch/build the appropriate m3u8 URL
-            video.src = 'your stream URL here.m3u8';
+            video.src = 'https://dmf9cnjua2s32.cloudfront.net/media/a0gOlZgwuwiM1/0653c381/stream.m3u8';
         }
 
         function onerror(event) {
@@ -235,7 +235,7 @@
         }
 
         function onkeyerror(event) {
-            window.console.error('A decryption key error was encountered');
+            window.console.error('A decryption key error was encountered', event.target.error);
         }
 
         function onkeyadded(event) {
